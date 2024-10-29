@@ -1,0 +1,15 @@
+---
+title: "Figure 4"
+format: html
+editor: visual
+---
+
+## Data
+
+## Code
+
+no code
+
+## Legend
+
+**Germline and somatic hyphae are physically separated and accumulate mutations at different rates. a,** Frequency of reads carrying mutations (allelic fractions) in lamellae (germline; purple) and stipes (soma; green). The distributions are statistically different (p \< 0.05; Wilcoxon rank-sum test). The cutoff frequency of 0.4 for the mutation accumulation rate is indicated by a dashed line (mutations at a higher frequency were included). **b,** Tanglegram of trees formed from germline (left; purple) and somatic (right; green) mutations. The mushroom N16-3 where topologies differ is indicated in bold. **c**, Average number of mutations in lamellae (germline; purple) and stipes (soma; green), counting only mutations with an allelic fraction \>0.4. Stipes have accumulated significantly more mutations (fold change: 2.18-fold; p = 0.005; Welch two sample t-test).

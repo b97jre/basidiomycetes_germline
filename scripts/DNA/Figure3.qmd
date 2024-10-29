@@ -1,0 +1,15 @@
+---
+title: "Figure 3"
+format: html
+editor: visual
+---
+
+## Data
+
+## Code
+
+no code
+
+## Legend
+
+**Consistent separation of the germline over time and space. a,** Cladograms (maximum parsimony; branch length not shown) of genotypes of lamellae (purple) and stipes (green) from fruiting bodies collected from ring 06 (top) and the eastern side of ring 43 (bottom). All branches are fully supported. Fruiting bodies were collected in 2023 from ring 06 and 2016, 2018, 2021, and 2023 from ring 43. **b,** Multidimensional scaling (MDS) of the mutations in the samples represented in panel **a** (top: ring 06; bottom: eastern side of ring 43). Coloring according to tissue type as in **a**.

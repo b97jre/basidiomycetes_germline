@@ -1,0 +1,15 @@
+---
+title: "Figure 2"
+format: html
+editor: visual
+---
+
+## Data
+
+## Code
+
+no code
+
+## Legend
+
+**Distribution of *de novo* mutations identified in fruiting bodies of *Marasmius oreades.*** Fertile tissues (i.e., spores and lamellae) and sterile tissue (i.e., the stipe) differ in the set of mutations they carry. **a**, Frequency (allelic fraction) of mutations in the reads covering the mutated site, shown in a subset of the dataset for fruiting bodies where spores were collected. In the faceting, columns indicate fruiting bodies and rows indicate tissues. Different mutations are coded by color. **b**, Schematic illustration of dissected tissues from *M. oreades* fruiting bodies. **c**, Sampling map of where fruiting bodies in panel **a** were collected. Radius distance in cm.

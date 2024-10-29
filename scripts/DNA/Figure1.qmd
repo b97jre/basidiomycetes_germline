@@ -1,0 +1,13 @@
+---
+title: "Figure 1"
+format: html
+editor: visual
+---
+
+## Code
+
+no code
+
+## Legend
+
+**Fungal fairy rings. a,** Fairy rings of *Marasmius oreades* are common in lawns across the northern hemisphere. The fungal mycelium grows underground, giving rise to dense and vigorous vegetation during humid weather. **b**, Fruiting bodies (up to \~8 cm in height) emerge seasonally along the edge of the ring. **c**, During the life cycle of a fairy-ring fungus, a dikaryotic mycelium (brown), bearing two genetically distinct nuclei, is established by mating of monokaryotic mycelia (red and blue), formed by sexual spores dispersed from the mushrooms. The dikaryotic individual expands radially over time, while the center of the mycelium dies off, giving rise to the characteristic fairy ring phenotype. Mushrooms form along the ring periphery, composed of the stipe, and cap, which bears lamellae. In the lamellae, the nuclei of the dikaryon fuse (karyogamy), and immediately enter meiosis. After meiosis, haploid mononucleate spores are formed and dispersed.
