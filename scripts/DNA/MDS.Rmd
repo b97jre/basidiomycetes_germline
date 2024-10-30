@@ -1,0 +1,74 @@
+---
+title: "Multidimensional scaling of mutations"
+author: "Markus"
+date: "2024-09-27"
+---
+
+
+```{r}
+require(vcfR)
+require(vegan)
+require(ggplot2)
+require(ggpubr)
+require(dplyr)
+setwd("Y:/Research/Germline_project/mutations analysis")
+
+infile <- "ring06.stipe-gills.recode.vcf" # For the full data of ring 06
+infile <- "ring43-east.recode.vcf" 	# For the East subset of ring 43
+
+snps <- vcfR::read.vcfR(infile, convertNA  = TRUE)
+# Here we work with frequencies of reads support reference/alternate allele
+dp <- vcfR::extract.gt(snps, 
+                       element = "DP",
+                       as.numeric = T,
+                       IDtoRowNames  = F,
+                       convertNA = T,
+                       return.alleles = F)
+ao <- vcfR::extract.gt(snps, 
+                       element = "AO",
+                       as.numeric = T,
+                       IDtoRowNames  = F,
+                       convertNA = T,
+                       return.alleles = F)
+gt_freq <- ao/dp
+gt_freq_t <- t(gt_freq)
+
+# Calculate the MDS
+d <- dist(gt_freq_t) # euclidean distances between the rows
+fit <- cmdscale(d,eig=TRUE, k=2) # k is the number of dim
+hc <- hclust(d) # Hierarchical clustering.
+
+# plot solution
+x <- fit$points[,1]
+y <- fit$points[,2]
+points <- as.data.frame(fit$points)
+points$Sample <- c(rownames(points))
+
+points <- points %>%
+  mutate(tissue = case_when(
+    endsWith(Sample, "L") ~ "Lamellae",
+    endsWith(Sample, "l") ~ "Lamellae",
+    endsWith(Sample, "l1") ~ "Lamellae",
+    endsWith(Sample, "l2") ~ "Lamellae",
+    endsWith(Sample, "l3") ~ "Lamellae",
+    endsWith(Sample, "l4") ~ "Lamellae",
+    endsWith(Sample, "S") ~ "Stipe",
+    endsWith(Sample, "st") ~ "Stipe",
+    endsWith(Sample, "ct") ~ "Cap",
+    endsWith(Sample, "cb") ~ "Cap",
+    endsWith(Sample, "sp") ~ "Spores",
+    endsWith(Sample, "sb") ~ "Stipe",
+    endsWith(Sample, "s") ~ "Stipe"))
+
+p <- ggplot(points, aes(V1, V2,col=tissue)) + 
+  geom_point(size = 3.5) +
+  theme_classic() +
+  scale_color_manual(values=c("#cf9ddbff", "#96c176ff")) +
+  theme(legend.position = "none") +
+  labs(x = "Dimension 1", y= "Dimension 2") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray") 
+
+ggsave(file="ring43E.mds.svg", plot=p, width=3, height=3)
+ggsave(file="ring06.mds.svg", plot=p, width=3, height=3)
+```
