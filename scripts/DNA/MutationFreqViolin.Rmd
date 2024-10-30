@@ -1,0 +1,140 @@
+---
+title: "Mutation frequencies violin"
+author: "Markus"
+date: "2024-10"
+---
+
+```{r}
+require(ggpubr)
+require(vcfR)
+require(dplyr)
+require(ggplot2)
+require(reshape2)
+
+# Violin plot of the frequencies
+# Combine data from 06 and 43
+# Include also the background variation.
+# And include the spores.
+f <- "Y:/Research/Germline_project/mutations analysis/ring43.mosaic-stipe-gills.filt.recode.tab"
+dat43 <- import_data(f)
+f <- "Y:/Research/Germline_project/mutations analysis/ring06.stipe-gills.recode.tab"
+dat06 <- import_data(f)
+f <- "Y:/Research/Germline_project/mutations analysis/ring43.mushrooms-with-spores.summed.tab"
+dat <- import_data(f)
+dat$Samplechar <- as.character(dat$Sample)
+dat <- dat %>%
+  mutate(Tissue = case_when(
+    endsWith(Samplechar, "sp") ~ "Spores",
+    endsWith(Samplechar, "l") ~ "Lamellae",
+    endsWith(Samplechar, "s") ~ "Stipe"))
+dat <- dat[dat$Tissue == "Spores",c(1,2,3)]
+dat <- rbind(dat43,dat06,dat)
+
+dat$Samplechar <- as.character(dat$Sample)
+dat <- dat %>%
+  mutate(Tissue = case_when(
+    endsWith(Samplechar, "L") ~ "Lamellae",
+    endsWith(Samplechar, "l") ~ "Lamellae",
+    endsWith(Samplechar, "S") ~ "Stipe",
+    endsWith(Samplechar, "sp") ~ "Spores",
+    endsWith(Samplechar, "s") ~ "Stipe"))
+
+# Need to first remove all 0's.
+dat_f <- dat[dat$Frequency > 0.15,]
+# Are the tissues different?
+x <- dat_f[dat_f$Tissue == "Stipe",]$Frequency
+y <- dat_f[dat_f$Tissue == "Lamellae",]$Frequency
+z <- dat_f[dat_f$Tissue == "Spores",]$Frequency
+shapiro.test(x)
+shapiro.test(y) # Both are highly significant, i.e. not normally distributed. So we use wilcox.
+shapiro.test(z) # p-value = 0.8416, no deviation from 0.5
+wilcox.test(x, y)$p.value # Highly significant.
+wilcox.test(x, z)$p.value # Highly significant.
+wilcox.test(y, z)$p.value # Not significant.
+
+## Read the background data from the vcf files
+vcf_file <- "Y:/Research/Germline_project/mutations analysis/background variation/ring43.stipe-gills.fb.filt.sitecov.recode.vcf"
+vcf_file <- "Y:/Research/Germline_project/mutations analysis/background variation/ring06.stipe-gills.fb.filt.sitecov.recode.vcf"
+vcf <- read.vcfR(vcf_file, verbose = FALSE)
+localchromR <- create.chromR(vcf = vcf)
+NR <- extract.gt(vcf, element="DP", as.numeric=TRUE) # Total coverage of the site, filtered
+AD <- extract.gt(vcf, element="AD", as.numeric=FALSE)
+ADcounts <- melt(AD, id = c("pos", "sample", "AD"))
+ADs <- strsplit(as.vector(ADcounts$value), split=",")
+NV <- NR - extract.gt(vcf, element="AD", as.numeric=TRUE)# Coverage of the alternative allele
+NVcounts <- melt(NV, id = c("pos", "sample", "NV"))
+names(NVcounts) <- c("pos", "sample", "NV")
+NRcounts <- melt(NR, id = c("pos", "sample", "NR"))
+names(NRcounts) <- c("pos", "sample", "NR")
+counts <- cbind(NVcounts, NRcounts$NR, NVcounts$NV/NRcounts$NR)
+names(counts) <- c("pos", "sample", "NV", "NR", "Frequency")
+counts43 <- counts
+counts06 <- counts
+# Combine counts and remove 0's
+counts <- rbind(counts43,counts06)
+counts <- counts[counts$Frequency > 0.15 & counts$Frequency < 0.85,] # Filter the same way as the mutations
+counts$Tissue <- "Background"
+# Now this dataset is massive compared to the mutations.
+# I will try random downsampling to keep 1000 variants
+counts_ds <- counts[sample(nrow(counts), 1000), ]
+
+# The we merge the datasets into one.
+dat_m <- data.frame(Variant = c(dat_f$mutation, counts_ds$pos),
+                    Tissue = as.factor(c(dat_f$Tissue, counts_ds$Tissue)),
+                    Frequency = c(dat_f$Frequency, counts_ds$Frequency))
+
+# Get the population sizes
+len_sti <- nrow(dat_m[dat_m$Tissue == "Stipe",])
+len_lam <- nrow(dat_m[dat_m$Tissue == "Lamellae",])
+len_sp <- nrow(dat_m[dat_m$Tissue == "Spores",])
+len_bg <- nrow(dat_m[dat_m$Tissue == "Background",])
+
+dat_m$Tissue <- factor(dat_m$Tissue, levels = c("Spores",
+                                                "Lamellae",
+                                                "Stipe",
+                                                "Background"))
+p_viol <- ggplot(dat_m, aes(x=Tissue, y=Frequency, fill = Tissue)) + 
+  geom_violin() +
+  scale_fill_manual(values=c("#719ddb","#cf9ddbff", "#96c176ff", "gray")) +
+  #geom_hline(yintercept=0.5, col = "red", linetype = 2) +
+  geom_boxplot(width=0.09, fill = "white", outlier.shape = NA) +
+  theme_classic() +
+  theme(legend.position = "none",
+        axis.title.x=element_blank(),
+        panel.grid.major.y = element_line()) +
+  scale_y_continuous(limits = c(0,1),
+                     breaks = c(0,0.25,0.50,0.75,1.0)) +
+  scale_x_discrete(labels=c("Spores" = paste0("Spores\n(n=",
+                                            len_sp,")"),
+                          "Lamellae" = paste0("Lamellae\n(n=",
+                                              len_lam,")"),
+                          "Stipe" = paste0("Stipe\n(n=",
+                                           len_sti,")"),
+                          "Background" = paste0("Background\n(n=",len_bg,")")))
+
+# Add significance levels
+comp = list( c("Spores","Lamellae"),
+             c("Lamellae","Stipe"), 
+             c("Spores","Stipe"),
+             c("Spores","Background"),
+             c("Lamellae","Background"), 
+             c("Stipe","Background"))
+p_viol_pval <- p_viol + stat_compare_means(comparisons = comp, 
+                                      label.y = seq(from=0.65,length.out=6,by=0.06),
+                                      size = 3,
+                                      vjust = 0.25,
+                                      label = "p.signif")
+
+ggsave(file="mutation-freq.viol.svg", plot=p_viol_pval, width=3.2, height=2.6)
+
+## Separate wilcox test
+freq_s <- dat_m[dat_m$Tissue == "Stipe",]$Frequency
+freq_l <- dat_m[dat_m$Tissue == "Lamellae",]$Frequency
+freq_b <- dat_m[dat_m$Tissue == "Background",]$Frequency
+freq_sp <- dat_m[dat_m$Tissue == "Spores",]$Frequency
+wilcox.test(freq_s, freq_b) # p=1.311121e-55
+wilcox.test(freq_l, freq_b) # p=3.966e-05
+wilcox.test(freq_sp, freq_b) # p=0.2866
+shapiro.test(freq_b)
+
+```
