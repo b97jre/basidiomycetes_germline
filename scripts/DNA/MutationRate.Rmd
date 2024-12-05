@@ -1,0 +1,40 @@
+---
+title: "Mutation rate"
+author: "Peter Jan"
+date: "2024-10"
+---
+
+library("ggplot2")
+library(reshape2)
+require(ggpubr)
+
+```{r}
+# Hard coded values.
+# Data from Supplementary Table 4
+Stipe <- c(3.75, 5.5, 5, 9, 6, 4, 3, 2, 5, 0, 7)
+Lamellae <- c(1, 1, 3, 3, 5, 2, 2, 3, 0, 1, 2)
+
+mean(Stipe)
+mean(Lamellae)
+shapiro.test(Stipe)
+shapiro.test(Lamellae) 
+# Cannot reject normality, so t-test is good.
+
+t.test(x=Stipe, y=Lamellae, alternative="g", paired=F, var.equal=F)
+# p.value = 0.004975
+
+df <-data.frame(Lamellae,Stipe)
+df <- melt(df)
+comp = list( c("Lamellae","Stipe"))
+
+p <-ggplot(df, aes(x=variable, y=value, fill=variable)) +
+  geom_boxplot(show.legend=FALSE) +
+  geom_dotplot(binaxis='y', stackdir='center', dotsize=0.5, fill="black") +
+  scale_fill_manual(values=c("#ca9ec9", "#97c176")) +
+  theme_classic() +
+  labs(x="Tissue", y="Average # of mutations") + 
+  scale_y_continuous(expand=c(0,0)) +
+  theme(axis.title.x=element_blank()) +
+  ylim(0,9.8)
+p <- p + stat_compare_means(comparisons = comp, label = "p.signif", method = "t.test")
+```

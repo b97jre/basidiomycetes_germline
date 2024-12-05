@@ -1,0 +1,322 @@
+---
+title: "Mutation frequency bar plots"
+author: "Markus"
+date: "2024"
+---
+
+```{r}
+require(ggplot2)
+require(stringr)
+require(reshape2)
+require(dplyr)
+setwd("Y:/Research/Germline_project/mutations analysis/plots")
+
+# Function to import variant data from tab format of VariantToTable from GATK
+import_data <-function(tabfile){
+  dat <- read.delim(tabfile, check.names=TRUE)
+  df <- select(dat, -CHROM,-POS,-ID,-REF,-ALT,-QUAL)  # Extract interesting fields and reformat
+  
+  # Calculate the frequencies in each element
+  calcfreq <- function(x){
+    vals <- unlist(strsplit(x,","))
+    ref <- as.numeric(vals[1])
+    alt <- as.numeric(vals[2])
+    tot <- ref+alt
+    freq <- alt/tot
+    return(freq)
+  }
+  freq <- as.data.frame(apply(df, c(1,2), calcfreq))
+  # Keep track of mean frequency per mutation - this is the plotting order
+  freq$mutation <- rowMeans(freq)
+  freq <- freq[order(-freq$mutation),] 
+  freq$mutation <- paste0(rep("mut",nrow(freq)),1:nrow(freq))
+  #freq$mutation <- as.character(1:nrow(freq))
+  dat2 <- melt(freq,id.vars="mutation",variable.name="Sample",value.name="Frequency")
+  return(dat2)
+}
+
+order_mutations_by_freq <- function(dat){
+  # Order mutations according to how frequent they are in lamellae and stipe.
+  hd <- as.data.frame(table(dat[dat$Tissue == "Lamellae" & dat$Frequency > 0.15,]$mutation))
+  hd <- hd[order(-hd$Freq),]
+  tl <- as.data.frame(table(dat[dat$Tissue == "Stipe" & dat$Frequency > 0.15,]$mutation))
+  tl <- tl[order(-tl$Freq),]
+  mutation_order <- rbind(hd, tl)$Var1
+  return(mutation_order)
+}
+order_mutations_by_sample <- function(dat){
+  # Order mutations according to which sample they occur in
+  mutation_order <- list()
+  samples <- unique(dat[dat$Tissue == "Lamellae",]$Sample)
+  for (sample in samples){
+    hd <- as.data.frame(table(dat[dat$Sample == sample & dat$Frequency > 0.15,]$mutation))
+    mutation_order <- append(mutation_order,hd$Var1)
+  }
+  # Add stipe mutations
+  samples <- unique(dat[dat$Tissue == "Stipe",]$Sample)
+  for (sample in samples){
+    hd <- as.data.frame(table(dat[dat$Sample == sample & dat$Frequency > 0.15,]$mutation))
+    mutation_order <- append(mutation_order,hd$Var1)
+  }
+  return(unique(mutation_order))
+}
+
+filt_uniq <- function(dat){
+  # Filter data fram to only include mutations that are shared by
+  # two or more samples
+  dat_f <- dat
+  for (mut in dat$mutation){
+    cnt <- sum(dat[dat$mutation == mut,]$Frequency>0.1, na.rm =TRUE)
+    if (cnt < 2){
+      dat_f <- dat_f[dat_f$mutation != mut,]  
+    }
+  }
+  return(dat_f)
+}
+
+#### 2024-04-04
+# The detailed dissections.
+f <- "Y:/Research/Germline_project/mutations analysis/ring43.mosaic.detailed-dissections.recode.tab"
+dat <- import_data(f)
+dat$Samplechar <- as.character(dat$Sample)
+dat <- dat %>%
+  mutate(Tissue = case_when(
+    endsWith(Samplechar, "ct") ~ "Cap top",
+    endsWith(Samplechar, "cb") ~ "Cap base",
+    endsWith(Samplechar, "sp") ~ "Spores",
+    endsWith(Samplechar, "l1") ~ "Lamellae 1",
+    endsWith(Samplechar, "l2") ~ "Lamellae 2",
+    endsWith(Samplechar, "l3") ~ "Lamellae 3",
+    endsWith(Samplechar, "l4") ~ "Lamellae 4",
+    endsWith(Samplechar, "sb") ~ "Stipe base",
+    endsWith(Samplechar, "st") ~ "Stipe top"))
+dat <- dat %>%
+  mutate(Mushroom = case_when(
+    startsWith(Samplechar, "N5") ~ "N5",
+    startsWith(Samplechar, "N6") ~ "N6",
+    startsWith(Samplechar, "NW4") ~ "NW4"))
+tissue_order <- c("Spores",
+                  "Lamellae 1",
+                  "Lamellae 2",
+                  "Lamellae 3",
+                  "Lamellae 4",
+                  "Cap top",
+                  "Cap base",
+                  "Stipe top",
+                  "Stipe base")
+mutation_order <- c("mut1",
+                    "mut5",
+                    "mut8",
+                    "mut9",
+                    "mut22",
+                    "mut23",
+                    "mut20",
+                    "mut21",
+                    "mut2",
+                    "mut3",
+                    "mut4",
+                    "mut6",
+                    "mut7",
+                    "mut10",
+                    "mut11",
+                    "mut12",
+                    "mut13",
+                    "mut14",
+                    "mut15",
+                    "mut16",
+                    "mut17",
+                    "mut18",
+                    "mut19")
+
+p <- ggplot(data=dat, aes(x=mutation, y=Frequency, fill=mutation)) +
+  geom_bar(stat="identity") +
+  theme_minimal() +
+  #ggtitle("Mutations in detailed dissections") +
+  scale_x_discrete(limits = mutation_order) +
+  scale_y_continuous(breaks = c(0,0.25,0.5)) +
+  facet_grid(factor(Tissue, levels=tissue_order)~Mushroom) +
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        panel.grid.minor = element_blank(), # Remove minor grid lines
+        panel.grid.major.x = element_blank(), # Remove major x grid lines
+        panel.spacing = unit(0, "lines"), # Outline the panels
+        panel.border = element_rect(color = "darkgray", fill = NA, size = 0.75), 
+        legend.position = "none")
+ggsave(file="mosaic.detailed-dissec.svg", plot=p, width=4, height=6.2)
+
+### All mushrooms where we have spore data.
+f <- "Y:/Research/Germline_project/mutations analysis/ring43.mushrooms-with-spores.summed.tab"
+dat <- import_data(f)
+dat$Samplechar <- as.character(dat$Sample)
+dat <- dat %>%
+  mutate(Tissue = case_when(
+    endsWith(Samplechar, "sp") ~ "Spores",
+    endsWith(Samplechar, "l") ~ "Lamellae",
+    endsWith(Samplechar, "s") ~ "Stipe"))
+dat <- dat %>%
+  mutate(Mushroom = case_when(
+    startsWith(Samplechar, "N1") ~ "N1",
+    startsWith(Samplechar, "N5") ~ "N5",
+    startsWith(Samplechar, "N6") ~ "N6",
+    startsWith(Samplechar, "NW4") ~ "NW4",
+    startsWith(Samplechar, "N4") ~ "N4",
+    startsWith(Samplechar, "NW3") ~ "NW3"))
+tissue_order <- c("Spores",
+                  "Lamellae",
+                  "Stipe")
+mutation_order <- c("mut1",
+                    "mut10",
+                    "mut11",
+                    "mut12",
+                    "mut13",
+                    "mut14",
+                    "mut3",
+                    "mut2",
+                    "mut15",
+                    "mut16",
+                    "mut28",
+                    "mut17",
+                    "mut18",
+                    "mut19",
+                    "mut21",
+                    "mut22",
+                    "mut23",
+                    "mut24",
+                    "mut25",
+                    "mut26",
+                    "mut20",
+                    "mut27",
+                    "mut31",
+                    "mut32",
+                    "mut29",
+                    "mut30",
+                    "mut4",
+                    "mut5",
+                    "mut6",
+                    "mut7",
+                    "mut8",
+                    "mut9")
+p <- ggplot(data=dat, aes(x=mutation, y=Frequency, fill=mutation)) +
+  geom_bar(stat="identity") +
+  theme_minimal() +
+  #ggtitle(label="Mutations in ring 43",
+  #        subtitle="Subset for three tissues") +
+  scale_x_discrete(limits = mutation_order) +
+  scale_y_continuous(breaks = c(0,0.25,0.5)) +
+  facet_grid(factor(Tissue, levels=tissue_order)~Mushroom) +
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        panel.grid.minor = element_blank(), # Remove minor grid lines
+        panel.grid.major.x = element_blank(), # Remove major x grid lines
+        panel.spacing = unit(0, "lines"), # Outline the panels
+        panel.border = element_rect(color = "darkgray", fill = NA, linewidth = 0.75), 
+        legend.position = "none")
+
+# Plot it as small as possible without losing info.
+ggsave(file="mosaic.mushrooms-with-spores.svg", plot=p, width=4, height=2)
+
+### I want to show that the pattern is consistent over time and space.
+f <- "Y:/Research/Germline_project/mutations analysis/ring43-east.recode.tab"
+dat <- import_data(f)
+dat$Samplechar <- as.character(dat$Sample)
+dat <- dat %>%
+  mutate(Tissue = case_when(
+    endsWith(Samplechar, "L") ~ "Lamellae",
+    endsWith(Samplechar, "S") ~ "Stipe"))
+dat <- dat %>%
+  mutate(Mushroom = case_when(
+    startsWith(Samplechar, "E16.1") ~ "2016E1",
+    startsWith(Samplechar, "E16.2") ~ "2016E2",
+    startsWith(Samplechar, "E16.3") ~ "2016E3",
+    startsWith(Samplechar, "E18.1") ~ "2018E1",
+    startsWith(Samplechar, "E21.1") ~ "2021E1",
+    startsWith(Samplechar, "E21.3") ~ "2021E3",
+    startsWith(Samplechar, "E23.1") ~ "2023E1",
+    startsWith(Samplechar, "E23.2") ~ "2023E2"))
+tissue_order <- c("Lamellae",
+                  "Stipe")
+dat <- filt_uniq(dat) # Keep only shared mutations.
+mutation_order <- c("mut1",
+                    "mut5",
+                    "mut6",
+                    "mut9",
+                    "mut10",
+                    "mut13",
+                    "mut14",
+                    "mut12",
+                    "mut11",
+                    "mut3",
+                    "mut2",
+                    "mut4",
+                    "mut7",
+                    "mut8")
+
+p <- ggplot(data=dat, aes(x=mutation, y=Frequency, fill=mutation)) +
+  geom_bar(stat="identity") +
+  theme_minimal() +
+  #ggtitle(label="Mutations in ring 43",
+  #        subtitle="Shared mutations in East") +
+  scale_x_discrete(limits = mutation_order) +
+  facet_grid(factor(Tissue, levels=tissue_order)~Mushroom) +
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        legend.position = "none")
+ggsave(file="ring43-east.shared.png", plot=p, width=4.6, height=2.5)
+
+### Ring06 shared mutations
+f <- "Y:/Research/Germline_project/mutations analysis/ring06.stipe-gills.recode.tab"
+dat <- import_data(f)
+dat$Samplechar <- as.character(dat$Sample)
+dat <- dat %>%
+  mutate(Tissue = case_when(
+    endsWith(Samplechar, "L") ~ "Lamellae",
+    endsWith(Samplechar, "S") ~ "Stipe"))
+dat <- dat %>%
+  mutate(Mushroom = case_when(
+    startsWith(Samplechar, "X06NE23.1") ~ "NE1",
+    startsWith(Samplechar, "X06NE23.2") ~ "NE2",
+    startsWith(Samplechar, "X06NE23.3") ~ "NE3",
+    startsWith(Samplechar, "X06NE23.4") ~ "NE4",
+    startsWith(Samplechar, "X06S23.1") ~ "S1",
+    startsWith(Samplechar, "X06S23.2") ~ "S2",
+    startsWith(Samplechar, "X06S23.3") ~ "S3",
+    startsWith(Samplechar, "X06S23.4") ~ "S4",
+    startsWith(Samplechar, "X06S23.5") ~ "S5",
+    startsWith(Samplechar, "X06S23.6") ~ "S6"))
+tissue_order <- c("Lamellae",
+                  "Stipe")
+dat <- filt_uniq(dat) # Keep only shared mutations.
+mutation_order <- c("mut10",
+                    "mut16",
+                    "mut17",
+                    "mut2",
+                    "mut3",
+                    "mut9",
+                    "mut1",
+                    "mut11",
+                    "mut12",
+                    "mut13",
+                    "mut14",
+                    "mut15",
+                    "mut19",
+                    "mut21",
+                    "mut18",
+                    "mut20",
+                    "mut4",
+                    "mut5",
+                    "mut6",
+                    "mut7",
+                    "mut8")
+
+p <- ggplot(data=dat, aes(x=mutation, y=Frequency, fill=mutation)) +
+  geom_bar(stat="identity") +
+  theme_minimal() +
+  #ggtitle(label="Ring 06 shared mutations") +
+  scale_x_discrete(limits = mutation_order) +
+  facet_grid(factor(Tissue, levels=tissue_order)~Mushroom) +
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        legend.position = "none")
+ggsave(file="ring06.shared.png", plot=p, width=4.6, height=2.5)
+
+```
