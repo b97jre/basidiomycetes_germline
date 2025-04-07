@@ -24,6 +24,7 @@ library(patchwork)
 
 
 rename = dplyr::rename
+select = dplyr::select
 
 
 colors_syn = c("lightblue","darkblue")
@@ -123,7 +124,7 @@ nucleotides <- c("A", "T", "C", "G")
 # Expand grid to get all combinations of nucleotides in three positions
 trimers <- expand.grid(n1 = nucleotides, n2 = nucleotides, n3 = nucleotides) %>%
   mutate(trimer = paste0(n1, n2, n3)) %>%
-  select(trimer)
+  dplyr::select(trimer)
 
 # Step 2: Generate mutations for all three positions and add position info
 generate_mutations_all_positions <- function(trimer) {
@@ -541,7 +542,7 @@ mutations.snp.real %>%
   mutate(mutation = gsub("nonsyn","non-synonymous",mutation)) %>%
   mutate(mutation = replace(mutation, mutation == "syn","synonymous")) %>%
   ggplot(aes(x=Tissue, y = fraction, fill = mutation))+ 
-    geom_bar(stat = "identity", color = "white", size. = 0.1) +
+    geom_bar(stat = "identity", color = "white", size = 0.1) +
   facet_grid(.~type,margins = TRUE)  +
   scale_fill_manual(values = colors) +
   theme_minimal()+
@@ -578,11 +579,13 @@ T.plot = backgroundPlots$T+
 
 layout <- (fraction.real / (C.plot | T.plot)/ fraction.background) + 
   plot_layout(heights = c(1, 1.5, 1),guides = "collect")  +
-  plot_annotation(tag_levels = 'a')
+  plot_annotation(tag_levels = 'A')
 
-ggsave("../../results/DNA/coding/background.distributions.pdf",layout, width = 8.27, height = 11.7, units = "in")
+layout
 
-ggsave("../../results/DNA/coding/background.distributions.png",dpi = 300,layout, width = 8.27, height = 11.7, units = "in")
+ggsave("../../results/DNA/coding/background.distributions.pdf",layout, width = 8.27, height = 8.27, units = "in")
+
+ggsave("../../results/DNA/coding/background.distributions.png",dpi = 300,layout, width = 8.27, height = 8.27, units = "in")
 
 ```
 
